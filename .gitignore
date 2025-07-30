@@ -1,0 +1,15 @@
+# Entornos virtuales
+venv/
+__pycache__/
+*.pyc
+
+# Archivos de configuración
+.env
+instance/
+
+# Base de Datos
+*.sqlite3
+*.db
+
+# Otros
+.DS_Store

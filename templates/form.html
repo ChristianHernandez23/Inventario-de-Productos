@@ -27,13 +27,22 @@
                 });
             </script>
         {% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
 
-
-
-        <h2>Add Product</h2>
+        {%if pro %}
+        <h2>Agregar Producto</h2>
             <form method="POST">
                 <div class="mb-3">
-                    <label class="form-label">Name of the Product</label>
+                    <label class="form-label">Nombre</label>
                     <input type="text" name="Product_Name" class="form-control">
                 </div>
                 <div class="mb-3">
@@ -41,26 +50,119 @@
                     <input type="number" step="0.01" name="Price" class="form-control">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Brand</label>
+                    <label class="form-label">Cantidad</label>
+                    <input type="text" name="Quantity" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Marca</label>
                     <input type="text" name="Brand" class="form-control">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Amount</label>
-                    <input type="number" name="Amount" class="form-control">
+                    <label class="form-label">Categoria</label>
+                    <select name="ID_Category" class="form-select" required>
+                        <option value="" disabled selected>Selecciona una categoria</option>
+                        {% for c in categories %}
+                            <option value="{{ c.id_category }}">{{ c.category_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">ID_Supplier</label>
-                    <input type="number" name="ID_Supplier" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Category</label>
-                    <input input type="number" name="ID_Category" class="form-control">
+                    <label class="form-label">Proveedor</label>
+                    <select name="ID_Supplier" class="form-select" required>
+                        <option value="" disabled selected>Selecciona un proveedor</option>
+                        {% for s in suppliers %}
+                            <option value="{{ s.id_supplier }}">{{ s.first_name }} {{ s.last_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-            <button type="submit" class="btn btn-primary">Guardar</button>
             
-            
+            <button type="submit" class="btn btn-primary">Guardar</button>  
         </form>
+        {%endif%}
+        {%if sup %}
+        <h2>Proveedor</h2>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" name="First_Name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Apellidos</label>
+                    <input type="text" name="Last_Name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Telefono</label>
+                    <input type="text" name="Phone" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correo</label>
+                    <input type="text" name="Email" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Direccion(Calle)</label>
+                    <input type="text" name="Street" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ciudad</label>
+                    <input input type="text" name="City" class="form-control">
+                </div>
+                <div clas="mb-3">
+                    <label class="form-label">Estado</label>
+                    <input input type="text" name ="State" class="form-control">
+                </div>
+                <div clas="mb-3">
+                    <label class="form-label">Codigo Postal</label>
+                    <input input type="text" name ="Zip_code" class="form-control">
+                </div>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+        </form>
+        {%endif%}
+        {%if ord %}
+        <h1>Formulario por completar</h1>
+
+
+        {%endif%}
+        {%if cus %}
+        <h2>Cliente</h2>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" name="First_Name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Apellidos</label>
+                    <input type="text" name="Last_Name" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Telefono</label>
+                    <input type="text" name="Phone" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Correo</label>
+                    <input type="text" name="Email" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Direccion(Calle)</label>
+                    <input type="text" name="Street" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ciudad</label>
+                    <input input type="text" name="City" class="form-control">
+                </div>
+                <div clas="mb-3">
+                    <label class="form-label">Estado</label>
+                    <input input type="text" name ="State" class="form-control">
+                </div>
+                <div clas="mb-3">
+                    <label class="form-label">Codigo Postal</label>
+                    <input input type="text" name ="Zip_code" class="form-control">
+                </div>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+        </form>
+        {%endif%}
+
+
         <br>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Volver</a>
 

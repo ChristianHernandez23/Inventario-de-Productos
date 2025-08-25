@@ -7,36 +7,38 @@
 
     </head>
     <body>
+        {%if pro%}
         <h2>Editar producto</h2>
             <form method="POST">
                 <div class="mb-3">
                     <label class="form-label">Nombre del producto</label>
-                    <input type="text" name="Product_Name" value="{{ product.Product_Name }}" class="form-control">
+                    <input type="text" name="Product_Name" value="{{ product.product_name }}" class="form-control">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Precio</label>
-                    <input type="number" step="0.01" name="Price" value="{{ product.Price }}" class="form-control">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Marca</label>
-                    <input type="text" name="Brand" value="{{ product.Brand }}" class="form-control">
+                    <input type="number" step="0.01" name="Price" value="{{ product.price }}" class="form-control">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Cantidad</label>
-                    <input type="number" name="Amount" value="{{ product.Amount }}" class="form-control">
+                    <input type="text" name="Quantity" value="{{ product.quantity }}" class="form-control">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Proveedor</label>
-                    <input type="number" name="ID_Supplier" value="{{ product.ID_Supplier }}" class="form-control">
+                    <label class="form-label">Marca</label>
+                    <input type="number" name="Brand" value="{{ product.brand }}" class="form-control">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Categoria</label>
-                    <input input type="number" name="ID_Category" value="{{ product.ID_Category }}" class="form-control">
+                    <input type="number" name="ID_Category" value="{{ product.id_category }}" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Proveedor</label>
+                    <input input type="number" name="ID_Supplier" value="{{ product.id_supplier }}" class="form-control">
                 </div>
 
             <button type="submit" class="btn btn-primary">Guardar</button>
             
         </form>
+        {%endif%}
         <br>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
 

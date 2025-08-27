@@ -5,6 +5,8 @@
                 <!-- Bootstrap 5 CSS -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
     </head>
     <body>
         {% if updated %}
@@ -38,7 +40,7 @@
         {% endif %}
         {% endwith %}
 
-        {%if pro %}
+        {%if add_id=='product' %}
         <h2>Agregar Producto</h2>
             <form method="POST">
                 <div class="mb-3">
@@ -80,7 +82,7 @@
             <button type="submit" class="btn btn-primary">Guardar</button>  
         </form>
         {%endif%}
-        {%if sup %}
+        {%if add_id=='supplier' %}
         <h2>Proveedor</h2>
             <form method="POST">
                 <div class="mb-3">
@@ -118,12 +120,224 @@
             <button type="submit" class="btn btn-primary">Guardar</button>
         </form>
         {%endif%}
-        {%if ord %}
-        <h1>Formulario por completar</h1>
+        {%if add_id=='orders' %}
+        <div class="container-fluid py-3">
+            <h3 class="mb-3">Crear Nueva Orden</h3>
+
+            <!-- Seleccionar Cliente -->
+            <div class="mb-3">
+                <label for="customer-select" class="form-label">Cliente</label>
+                <select id="customer-select" class="form-select" required>
+                    <option value="" disabled selected>Selecciona un cliente</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id_customer }}">{{ c.first_name }} {{ c.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="row">
+                <!-- Lista de productos -->
+                <div class="col-lg-8 mb-4">
+                    <h4 class="mb-3">Productos Disponibles</h4>
+                    <div class="d-flex overflow-auto pb-3" style="gap: 1rem;">
+                        {% for p in products %}
+                        <div class="card shadow-sm text-center" style="min-width: 200px;">
+                            <div class="card-body">
+                                <i class="bi bi-box-seam display-6 text-primary"></i>
+                                <h6 class="mt-2">{{ p.product_name }}</h6>
+                                <p class="text-muted mb-1">{{ p.brand }}</p>
+                                <p class="fw-bold text-success">${{ "%.2f"|format(p.price) }}</p>
+                                <p class="small text-secondary">Stock: {{ p.quantity }}</p>
+                                <button class="btn btn-outline-primary btn-sm w-100 add-to-order" data-id="{{ p.id_product }}"
+                                    data-name="{{ p.product_name }}" data-price="{{ p.price }}">
+                                    <i class="bi bi-cart-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Orden -->
+                <div class="col-lg-4">
+                    <h4 class="mb-3">Orden</h4>
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cant.</th>
+                                        <th>Subtotal</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="order-items">
+                                    <!-- Items dinámicos -->
+                                </tbody>
+                            </table>
+                            <h5 class="text-end mt-3">Total: <span id="order-total" class="text-success">$0.00</span></h5>
+
+                            <!-- Botón para abrir modal -->
+                            <button class="btn btn-primary w-100 mt-3" id="finalize-order" data-bs-toggle="modal"
+                                data-bs-target="#confirmModal">
+                                Finalizar Orden
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de confirmación -->
+        <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmar Orden</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>Productos seleccionados:</h6>
+                        <ul id="confirm-list" class="list-group mb-3"></ul>
+                        <h5 class="text-end">Total: <span id="confirm-total" class="text-success">$0.00</span></h5>
+
+                        <!-- Formulario que se enviará -->
+                        <form id="order-form" method="POST" action="{{ url_for('add_product', add_id='orders') }}">
+                            <input type="hidden" name="id_customer" id="id_customer">
+                            <div id="order-data"></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-success" id="confirm-order">Confirmar Orden</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const orderItems = document.getElementById("order-items");
+                const orderTotal = document.getElementById("order-total");
+                const confirmList = document.getElementById("confirm-list");
+                const confirmTotal = document.getElementById("confirm-total");
+
+                function updateTotal() {
+                    let total = 0;
+                    document.querySelectorAll("#order-items tr").forEach(tr => {
+                        const subtotal = parseFloat(tr.querySelector(".subtotal").dataset.value);
+                        total += subtotal;
+                    });
+                    orderTotal.textContent = "$" + total.toFixed(2);
+                    confirmTotal.textContent = "$" + total.toFixed(2);
+                }
+
+                function updateConfirmList() {
+                    confirmList.innerHTML = "";
+                    document.querySelectorAll("#order-items tr").forEach(tr => {
+                        const name = tr.querySelector(".product-name").textContent;
+                        const qty = tr.querySelector(".qty").value;
+                        const subtotal = tr.querySelector(".subtotal").textContent;
+                        const li = document.createElement("li");
+                        li.className = "list-group-item d-flex justify-content-between";
+                        li.textContent = `${name} x${qty}`;
+                        const span = document.createElement("span");
+                        span.textContent = subtotal;
+                        li.appendChild(span);
+                        confirmList.appendChild(li);
+                    });
+                }
+
+                document.querySelectorAll(".add-to-order").forEach(btn => {
+                    btn.addEventListener("click", function () {
+                        const id = this.dataset.id;
+                        const name = this.dataset.name;
+                        const price = parseFloat(this.dataset.price);
+
+                        let existingRow = [...document.querySelectorAll("#order-items tr")].find(row => row.dataset.id === id);
+                        if (existingRow) {
+                            const qtyInput = existingRow.querySelector(".qty");
+                            qtyInput.value = parseInt(qtyInput.value) + 1;
+                            const newSubtotal = price * parseInt(qtyInput.value);
+                            existingRow.querySelector(".subtotal").textContent = "$" + newSubtotal.toFixed(2);
+                            existingRow.querySelector(".subtotal").dataset.value = newSubtotal;
+                            updateTotal();
+                            return;
+                        }
+
+                        const tr = document.createElement("tr");
+                        tr.dataset.id = id;
+                        tr.innerHTML = `
+                        <td class="product-name">${name}</td>
+                        <td><input type="number" class="form-control form-control-sm qty" value="1" min="1" style="width:70px"></td>
+                        <td class="subtotal" data-value="${price}">$${price.toFixed(2)}</td>
+                        <td><button class="btn btn-danger btn-sm remove-item"><i class="bi bi-trash"></i></button></td>
+                    `;
+                        orderItems.appendChild(tr);
+
+                        tr.querySelector(".qty").addEventListener("input", function () {
+                            const qty = parseInt(this.value);
+                            const subtotal = price * qty;
+                            tr.querySelector(".subtotal").textContent = "$" + subtotal.toFixed(2);
+                            tr.querySelector(".subtotal").dataset.value = subtotal;
+                            updateTotal();
+                        });
+
+                        tr.querySelector(".remove-item").addEventListener("click", function () {
+                            tr.remove();
+                            updateTotal();
+                        });
+
+                        updateTotal();
+                    });
+                });
+
+                document.getElementById("finalize-order").addEventListener("click", function () {
+                    updateConfirmList();
+                });
+
+            document.getElementById("confirm-order").addEventListener("click", function () {
+                console.log("Confirmar Orden presionado");
+                const orderDataDiv = document.getElementById("order-data");
+                orderDataDiv.innerHTML = "";
+
+                document.querySelectorAll("#order-items tr").forEach((tr, index) => {
+                    const id = tr.dataset.id;
+                    const qty = tr.querySelector(".qty").value;
+                    const price = parseFloat(tr.querySelector(".subtotal").dataset.value) / qty;
+
+                    orderDataDiv.innerHTML += `
+                        <input type="hidden" name="products[${index}][id_product]" value="${id}">
+                        <input type="hidden" name="products[${index}][quantity]" value="${qty}">
+                        <input type="hidden" name="products[${index}][price]" value="${price}">
+                    `;
+                });
+
+                document.getElementById("id_customer").value = document.getElementById("customer-select").value;
+
+                // Validar antes de enviar
+                if (!document.getElementById("id_customer").value) {
+                    alert("Selecciona un cliente");
+                    return;
+                }
+                if (document.querySelectorAll("#order-items tr").length === 0) {
+                    alert("Agrega al menos un producto a la orden");
+                    return;
+                }
+
+                // Enviar formulario
+                document.getElementById("order-form").submit();
+            });
+
+            });
+        </script>
 
 
         {%endif%}
-        {%if cus %}
+
+        {%if add_id=='customers' %}
         <h2>Cliente</h2>
             <form method="POST">
                 <div class="mb-3">

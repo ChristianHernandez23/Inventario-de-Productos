@@ -1,8 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, flash,render_template, request, redirect, url_for
 import mysql.connector
 from config import db_config
+import secrets
+
 
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
@@ -10,47 +13,34 @@ def get_db_connection():
 @app.route('/')
 def index():
     return render_template('index.html')
+@app.route('/view/<string:view_id>')
+def view(view_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    if view_id=="pro":
+        cursor.execute("SELECT * FROM products")
+        table=cursor.fetchall()
+    elif view_id=="sup":
+        cursor.execute("SELECT * FROM suppliers")
+        table=cursor.fetchall()
+    elif view_id=="cus":
+        cursor.execute("SELECT * FROM customers")
+        table=cursor.fetchall()
+    elif view_id=="ord":
+        cursor.execute("SELECT * FROM orders")
+        table=cursor.fetchall()
+    print(table)
 
-@app.route('/products')
-def products():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM products")
-    products = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('show.html', products=products,pro=True)
-@app.route('/suppliers')
-def suppliers():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM suppliers")
-    suppliers = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('show.html',suppliers=suppliers,sup=True)
-@app.route('/customers')
-def customers():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM customers")
-    customers = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('show.html',customers=customers,cus=True)
-@app.route('/orders')
-def orders():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM orders")
-    orders = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('show.html',orders=orders,ord=True)
+    return render_template('show.html',table=table,flag=view_id)
+
 
 @app.route('/add/<string:add_id>', methods=['GET', 'POST'])
 def add_product(add_id):
     if request.method == 'POST':
+        conn = get_db_connection()
+        cursor = conn.cursor()
         if add_id == "product":
             name = request.form['Product_Name']
             price = request.form['Price']
@@ -58,10 +48,6 @@ def add_product(add_id):
             brand = request.form['Brand']
             supplier = request.form['ID_Supplier']
             category = request.form['ID_Category']
-
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
             # Verificar si ya existe el producto
             check_query = "SELECT * FROM products WHERE product_name = %s AND brand = %s"
             cursor.execute(check_query, (name, brand))
@@ -95,7 +81,7 @@ def add_product(add_id):
             conn.close()
             return redirect(url_for('add_product', add_id=add_id, added=True))
 
-        elif add_id == "supplier":
+        elif add_id == "supplier" or add_id =='customers':
             first_name = request.form['First_Name']
             last_name = request.form['Last_Name']
             phone = request.form['Phone']
@@ -105,16 +91,17 @@ def add_product(add_id):
             state = request.form['State']
             zip_c = request.form['Zip_code']
 
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
             # Verificar si ya existe el proveedor
+
             check_query = "SELECT * FROM suppliers WHERE first_name = %s AND last_name = %s"
+
+            if add_id=='customers':
+                check_query = "SELECT * FROM customers WHERE first_name = %s AND last_name = %s"
             cursor.execute(check_query, (first_name, last_name))
             existing = cursor.fetchone()
 
             if existing:
-                flash(f"El proveedor {first_name} {last_name} ya existía.", "warning")
+                flash(f"El registro con el nombre {first_name} {last_name} ya existía.", "warning")
                 cursor.close()
                 conn.close()
                 return redirect(url_for('add_product', add_id=add_id, updated=True))
@@ -124,12 +111,66 @@ def add_product(add_id):
                 INSERT INTO suppliers (first_name, last_name, phone, email, street, city, state, zip_code)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
+            if add_id=='customers':
+                insert_query = """
+                    INSERT INTO customers (first_name, last_name, phone, email, street, city, state, zip_code)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
             values = (first_name, last_name, phone, email, street, city, state, zip_c)
             cursor.execute(insert_query, values)
             conn.commit()
             cursor.close()
             conn.close()
             return redirect(url_for('add_product', add_id=add_id, added=True))
+        elif add_id == 'orders':
+            id_customer = request.form.get('id_customer')
+
+            raw_data = request.form.to_dict(flat=False)
+            products = []
+            index = 0
+            while f'products[{index}][id_product]' in raw_data:
+                products.append({
+                    'id_product': int(raw_data[f'products[{index}][id_product]'][0]),
+                    'quantity': int(raw_data[f'products[{index}][quantity]'][0]),
+                    'price': float(raw_data[f'products[{index}][price]'][0])
+                })
+                index += 1
+
+            if not id_customer or not products:
+                flash("Datos incompletos", "danger")
+                return redirect(url_for('add_product', add_id='orders'))
+
+            # Totales
+            total_qty = sum(p['quantity'] for p in products)
+            total_price = sum(p['quantity'] * p['price'] for p in products)
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # Insertar orden
+            cursor.execute(
+                "INSERT INTO orders (id_customer, total_quantity, total_price) VALUES (%s, %s, %s)",
+                (id_customer, total_qty, total_price)
+            )
+            id_order = cursor.lastrowid
+
+            # Insertar productos y actualizar stock
+            for p in products:
+                cursor.execute(
+                    "INSERT INTO order_items (id_order, id_product, quantity, price) VALUES (%s, %s, %s, %s)",
+                    (id_order, p['id_product'], p['quantity'], p['price'])
+                )
+                cursor.execute(
+                    "UPDATE products SET quantity = quantity - %s WHERE id_product = %s",
+                    (p['quantity'], p['id_product'])
+                )
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            flash("Orden creada exitosamente", "success")
+            return redirect(url_for('add_product', add_id='orders', added=True))
 
     # GET
     if add_id == "product":
@@ -145,30 +186,47 @@ def add_product(add_id):
         updated = request.args.get('updated') == True
         added = request.args.get('added') == True
 
-        return render_template('form.html', updated=updated, added=added, pro=True, suppliers=suppliers, categories=categories)
+        return render_template('form.html', updated=updated, added=added, add_id=add_id, suppliers=suppliers, categories=categories)
 
-    elif add_id == "supplier":
+    elif add_id == "supplier" or add_id == 'customers':
         updated = request.args.get('updated') == True
         added = request.args.get('added') == True
-        return render_template('form.html', updated=updated, added=added, sup=True)
+        if add_id =='customers':
+            add_id='customers'
+        return render_template('form.html', updated=updated, added=added, add_id=add_id)
+    elif add_id=="orders":
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id_customer, first_name, last_name FROM customers")
+        customers = cursor.fetchall()
+        cursor.execute("SELECT id_product, product_name,brand,price,quantity FROM products")
+        products = cursor.fetchall()
+        cursor.close()
+        conn.close()
 
+        updated = request.args.get('updated') == True
+        added = request.args.get('added') == True
+        return render_template('form.html',updated=updated,added=added,add_id=add_id,customers=customers,products=products)
 
 @app.route('/delete/<string:del_id>/<int:id_d>')
 def del_product(del_id,id_d):
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    if del_id=="product":
+    if del_id=="products":
         cursor.execute("DELETE FROM products WHERE id_product = %s", (id_d,))
-    elif del_id=="supplier":
+    elif del_id=="suppliers":
         cursor.execute("DELETE FROM suppliers WHERE id_supplier = %s", (id_d,))
-    elif del_id=="customer":
+    elif del_id=="customers":
         cursor.execute("DELETE FROM customers WHERE id_customer = %s", (id_d,))
     elif del_id=="orders":
+        cursor.execute("DELETE FROM order_items WHERE id_order = %s", (id_d,))
         cursor.execute("DELETE FROM orders WHERE id_order = %s", (id_d,))
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect(url_for('products'))
+
+    return redirect(url_for(del_id),deleted=True)
 
 @app.route('/edit/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):

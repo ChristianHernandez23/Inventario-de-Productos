@@ -240,10 +240,38 @@
            <td>{{ o.total_quantity }}</td>
             <td>{{ o.total_price }}</td>
             <td>
-              <a href="#" class="btn btn-sm btn-warning me-1">
+              <a href="{{ url_for('view',view_id='ord_it',order_id=o.id_order) }}" class="btn btn-sm btn-danger">
                 <i class="bi bi-pencil-square"></i>
               </a>
-              <a href="{{ url_for('del_product',del_id='orders',id_d=o.id_order) }}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar la orden?');">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% endif %}
+        {% if flag=='ord_it'  %}
+        <h1>Productos de la orden </h1>
+          <tr>
+            <th>ID_Order</th>
+            <th>Nombre_Producto</th>
+            <th>Marca</th>
+            <th>Fecha de Orden</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in table %}
+          <tr>
+            <td>{{ o.id_order }}</td>
+            <td>{{ o.product_name }}</td>
+            <td>{{ o.brand }}</td>
+            <td>{{ o.order_date }}</td>
+            <td>{{ o.quantity }}</td>
+            <td>{{ o.price }}</td>
+            
+            <td>
+              <a href="{{ url_for('del_product',del_id='order_items',id_d=o.id_product) }}"  class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro que deseas elimnar el producto de la orden?');">
                 <i class="bi bi-trash"></i>
               </a>
             </td>

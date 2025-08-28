@@ -13,27 +13,44 @@ def get_db_connection():
 @app.route('/')
 def index():
     return render_template('index.html')
-@app.route('/view/<string:view_id>')
-def view(view_id):
+@app.route('/view/<string:view_id>/', defaults={'order_id': None})
+@app.route('/view/<string:view_id>/<int:order_id>')
+def view(view_id, order_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    if view_id=="pro":
+
+    if view_id == "pro":
         cursor.execute("SELECT * FROM products")
-        table=cursor.fetchall()
-    elif view_id=="sup":
+        table = cursor.fetchall()
+
+    elif view_id == "sup":
         cursor.execute("SELECT * FROM suppliers")
-        table=cursor.fetchall()
-    elif view_id=="cus":
+        table = cursor.fetchall()
+
+    elif view_id == "cus":
         cursor.execute("SELECT * FROM customers")
-        table=cursor.fetchall()
-    elif view_id=="ord":
+        table = cursor.fetchall()
+
+    elif view_id == "ord":
         cursor.execute("SELECT * FROM orders")
-        table=cursor.fetchall()
-    print(table)
+        table = cursor.fetchall()
+
+    elif view_id == "ord_it" and order_id is not None:
+        cursor.execute("""
+            SELECT o.id_order, p.id_product, p.product_name, p.brand, o.order_date, i.quantity, i.price 
+            FROM orders o 
+            JOIN order_items i ON o.id_order = i.id_order 
+            JOIN products p ON i.id_product = p.id_product
+            WHERE o.id_order = %s
+        """, (order_id,))
+        table = cursor.fetchall()
+    else:
+        table = []  # En caso de error o view_id inválido
 
     cursor.close()
     conn.close()
-    return render_template('show.html',table=table,flag=view_id)
+    return render_template('show.html', table=table, flag=view_id)
+
 
 
 @app.route('/add/<string:add_id>', methods=['GET', 'POST'])
@@ -208,9 +225,9 @@ def add_product(add_id):
         added = request.args.get('added') == True
         return render_template('form.html',updated=updated,added=added,add_id=add_id,customers=customers,products=products)
 
+
 @app.route('/delete/<string:del_id>/<int:id_d>')
 def del_product(del_id,id_d):
-    
     conn = get_db_connection()
     cursor = conn.cursor()
     if del_id=="products":
@@ -222,11 +239,12 @@ def del_product(del_id,id_d):
     elif del_id=="orders":
         cursor.execute("DELETE FROM order_items WHERE id_order = %s", (id_d,))
         cursor.execute("DELETE FROM orders WHERE id_order = %s", (id_d,))
+    elif del_id=="order_items":
+        cursor.execute("DELETE FROM order_items WHERE id_product=%s", (id_d,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    return redirect(url_for(del_id),deleted=True)
+    return redirect(url_for('index'))
 
 @app.route('/edit/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
